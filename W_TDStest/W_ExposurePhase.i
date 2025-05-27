@@ -5,8 +5,8 @@
     type = GeneratedMesh           # Use a generated 1D mesh.
     dim = 1                        # 1D simulation.
     nx = 10                        # Divide the 1 mm thick sample into 10 elements.
-    xmin = 0.0                   # Start position (m).
-    xmax = 1.0e-3                  # End position (m) => 1 mm thickness.
+    xmin = 0.0                      # Start position (m).
+    xmax = 5.0e-5                  # End position (m) => 50 um thickness.
     elem_type = EDGE2              # 2-node line elements for 1D.
 []
   
