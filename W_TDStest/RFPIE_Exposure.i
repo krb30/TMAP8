@@ -8,8 +8,8 @@ nx_scale = 5
 diffusivity_D = '${units 3e-10 m^2/s -> mum^2/s}'
 recombination_parameter_enclos2 = '${units 2e-31 m^4/at/s -> mum^4/at/s}'
 recombination_coefficient_parameter_enclos1_TMAP4 = '${units 1e-27 m^4/at/s -> mum^4/at/s}' # Specify no/perfect recom at downstream side
-width = '${units 2.4e-9 m -> mum}'
-depth = '${units 14e-9 m -> mum}'
+width = '${units 2.4e-9 m -> mum}'  # omega - characteristic width of the normal distribution
+depth = '${units 14e-9 m -> mum}'   # mu - depth of the normal distribution from the upstream side
 
 flux_base = '${units 1.3e21 at/m^2/s -> at/mum^2/s}'
 flux_high = '${fparse 3 * flux_base}'   # 3*flux for He plasma
@@ -89,13 +89,13 @@ flux_high = '${fparse 3 * flux_base}'   # 3*flux for He plasma
       value             = 1
       boundary_material = flux_on_left
     []
-    [right]
-      type              = ADMatNeumannBC
-      variable          = concentration
-      boundary          = right
-      value             = 1
-      boundary_material = flux_on_right
-    []
+#    [right]
+#      type              = ADMatNeumannBC
+#      variable          = concentration
+#      boundary          = right
+#      value             = 1
+#      boundary_material = flux_on_right
+#    []
   []
   
 
@@ -104,10 +104,10 @@ flux_high = '${fparse 3 * flux_base}'   # 3*flux for He plasma
         type = ADDerivativeParsedMaterial
         coupled_variables = 'concentration'
         property_name = 'flux_on_left'
-        #functor_names = 'Kr_left_func'
-        #functor_symbols = 'Kr_left_func'
-        #expression = '- 2 * Kr_left_func * concentration ^ 2'
-        expression = '- 2 * ${recombination_parameter_enclos2} * concentration ^ 2'     # Assuming constant recombination across surface, left and right
+        functor_names = 'Kr_left_func'
+        functor_symbols = 'Kr_left_func'
+        expression = '- 2 * Kr_left_func * concentration ^ 2'
+        #expression = '- 2 * ${recombination_parameter_enclos2} * concentration ^ 2'     # Assuming constant recombination across surface, left and right
     []
     [flux_on_right]
         type = ADDerivativeParsedMaterial
@@ -156,7 +156,7 @@ flux_high = '${fparse 3 * flux_base}'   # 3*flux for He plasma
         scaling_factor = '${fparse -1 * ${units 1 m^2 -> mum^2}}'
         value = dcdx_left
         execute_on = 'initial nonlinear linear timestep_end'
-        outputs = 'console csv exodus'
+        outputs = 'console exodus'
     []
     [dcdx_right]
         type = ADSideAverageMaterialProperty
@@ -169,25 +169,22 @@ flux_high = '${fparse 3 * flux_base}'   # 3*flux for He plasma
         scaling_factor = '${fparse -1 * ${units 1 m^2 -> mum^2}}'
         value = dcdx_right
         execute_on = 'initial nonlinear linear timestep_end'
-        outputs = 'console csv exodus'
+        outputs = 'console exodus'
     []
     [loop_flux_pp]
         type = FunctionValuePostprocessor
         function = loop_flux
-        outputs = 'csv'
         execute_on = 'initial timestep_end'
     []
     [flux_pp]
         type = FunctionValuePostprocessor
         function = loop_flux
         execute_on = 'timestep_end'
-        outputs = 'csv'
     [] 
     [concentration_pp]
         type = FunctionValuePostprocessor
         function = concentration_source_norm_func
         execute_on = 'initial nonlinear timestep_end'
-        outputs = 'csv'
     []
 []
 
@@ -207,27 +204,26 @@ flux_high = '${fparse 3 * flux_base}'   # 3*flux for He plasma
 []  
 
 [Outputs]
-    csv = false
-    [csv_flux_only]
-        type = CSV
-        file_base = 'rfpie_flux'
-        time_column = true
-        postprocessors = 'flux_pp'
-        execute_on = 'initial timestep_end'
-    []
+#    [csv_flux_only]
+#        type = TMAP8CSVOutput
+#        file_base = 'rfpie_flux'
+#        output_execution_on = 'initial timestep_end'
+#        output_variables = 'flux_pp'
+#    []
 
-    [csv_full_data]
-        type = CSV
-        file_base = 'rfpie_full'
-        time_column = true
-        postprocessors = 'flux_pp scaled_recombination_flux_left scaled_recombination_flux_right concentration_pp'
-        execute_on = 'initial timestep_end'
-    []
+#    [csv_full_data]
+#        type = TMAP8CSVOutput
+#        file_base = 'rfpie_full'
+#        output_variables = 'flux_pp scaled_recombination_flux_left scaled_recombination_flux_right concentration_pp'
+#        output_execution_on = 'initial timestep_end'
+#    []
 
     [exodus]
         type = Exodus
         output_material_properties = true
         time_step_interval = 2
     []
+
+    csv = true
 []
 
