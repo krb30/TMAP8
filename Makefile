@@ -57,5 +57,8 @@ BUILD_EXEC         := yes
 GEN_REVISION       := no
 include            $(FRAMEWORK_DIR)/app.mk
 
+MOOSE_MODULES += outputs/csv
+
 ###############################################################################
 # Additional special case targets should be added here
+

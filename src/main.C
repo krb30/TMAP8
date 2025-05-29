@@ -8,6 +8,8 @@
 
 #include "TMAP8TestApp.h"
 #include "MooseMain.h"
+#include "TMAP8CSVOutput.h"
+
 
 int
 main(int argc, char * argv[])

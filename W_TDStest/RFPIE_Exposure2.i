@@ -210,7 +210,7 @@ time_5 = '${units 17678 s}'
 []
 
 [Outputs]
-  file_base = 'val-2a_out'
+  file_base = 'RFPIE_Exposure2_out'
   csv = true
   [exodus]
     type = Exodus
