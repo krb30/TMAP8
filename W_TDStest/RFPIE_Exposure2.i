@@ -1,19 +1,18 @@
+on_time = 4 # 4s in the middle of a 6s shot
+off_time = 17   
+number_of_shots = 10    # 250 shots eventually
+cycle_time = '${fparse on_time + off_time}'
+simulation_time = '${fparse number_of_shots * cycle_time}'
+  
 nx_scale = 5
-high_dt_max = 300
-low_dt_max = 4
-simulation_time = '${units 2e4 s}'
 diffusivity_D = '${units 3e-10 m^2/s -> mum^2/s}'
 recombination_parameter_enclos2 = '${units 2e-31 m^4/at/s -> mum^4/at/s}'
-flux_high = '${units 4.9e19 at/m^2/s -> at/mum^2/s}'
-flux_low =  '${units 0      at/mum^2/s}'
 recombination_coefficient_parameter_enclos1_TMAP4 = '${units 1e-27 m^4/at/s -> mum^4/at/s}' # Specify no/perfect recom at downstream side
 width = '${units 2.4e-9 m -> mum}'  # omega - characteristic width of the normal distribution
 depth = '${units 14e-9 m -> mum}'   # mu - depth of the normal distribution from the upstream side
-time_1 = '${units 5820 s}'
-time_2 = '${units 9056 s}'
-time_3 = '${units 12062 s}'
-time_4 = '${units 14572 s}'
-time_5 = '${units 17678 s}'
+
+flux_base = '${units 1.3e21 at/m^2/s -> at/mum^2/s}'
+flux_high = '${fparse 3 * flux_base}'   # 3*flux for He plasma
 
 [Variables]
   [concentration]  # (atoms/mum^3/s)
@@ -106,6 +105,14 @@ time_5 = '${units 17678 s}'
   []
 []
 
+[Traps/trap1]
+  binding_energy = 1.1        # eV, typical value for general hydrogen retention modeling
+  density = 1e23              # traps/m^3, use 1e20 if simulating a sample that hasn't been exposed. Inc or dec depending on what bias voltage you're simulating
+                              # 1e22 for 0V, 1e23 for -130V/-150V, 1e24 for -300V
+  capture_radius = 0.3e-9     # meters, typical atomic scale
+  trapping_model = "complete"   # or "simple" if not using detrapping
+[]
+
 [Functions]
   [Kr_left_func] # Recombination coefficient on left boundary w/ units [microns^4/at/s]
     type = ParsedFunction
@@ -114,11 +121,10 @@ time_5 = '${units 17678 s}'
 
   [surface_flux_func] # Describes the time varying particle flux at the surface w/ units [atoms/mum^2/s]  
     type = ParsedFunction
-    expression = 'if(t < ${time_1}, ${flux_high},
-                  if(t < ${time_2}, ${flux_low},
-                  if(t < ${time_3},  ${flux_high},
-                  if(t < ${time_4},  ${flux_low},
-                  if(t < ${time_5},  ${flux_high}, ${flux_low}))))) * 0.75'   # Multiplied by 0.75 b/c TRIM calculation showed only 75% of incident flux remained in sample
+    on_time = 4
+    cycle_time = 21
+    flux_high = ${flux_high}
+    expression = 'if(((t / ${cycle_time}) - floor(t / ${cycle_time})) < ${on_time} / ${cycle_time}, ${flux_high}, 0)'
   []
 
   [source_distribution] # Likely trapping site density
@@ -131,20 +137,6 @@ time_5 = '${units 17678 s}'
     symbol_names = 'source_distribution surface_flux_func'
     symbol_values = 'source_distribution surface_flux_func'
     expression = 'source_distribution * surface_flux_func'
-  []
-
-  [max_dt_size_func] # Dynamically changes the max time step size to ensure numerical stability during rapid changes in BCs, units [s]
-    type = ParsedFunction
-    expression = 'if(t<${time_1}-100,  ${high_dt_max},
-                  if(t<${time_1}+100,  ${low_dt_max},
-                  if(t<${time_2}-100,  ${high_dt_max},
-                  if(t<${time_2}+100,  ${low_dt_max},
-                  if(t<${time_3}-100,  ${high_dt_max},
-                  if(t<${time_3}+100,  ${low_dt_max},
-                  if(t<${time_4}-100,  ${high_dt_max},
-                  if(t<${time_4}+100,  ${low_dt_max},
-                  if(t<${time_5}-100,  ${high_dt_max},
-                  if(t<${time_5}+100,  ${low_dt_max}, ${high_dt_max}))))))))))'
   []
 []
 
@@ -175,11 +167,9 @@ time_5 = '${units 17678 s}'
     execute_on = 'initial nonlinear linear timestep_end'
     outputs = 'console csv exodus'
   []
-  [max_time_step_size]
-    type = FunctionValuePostprocessor
-    function = max_dt_size_func
-    execute_on = 'initial nonlinear linear timestep_end'
-    outputs = none
+  [total_H]
+    type = ElementIntegralVariable
+    variable = concentration
   []
 []
 
@@ -199,14 +189,6 @@ time_5 = '${units 17678 s}'
   end_time = ${simulation_time}
   automatic_scaling = true
   nl_rel_tol = 5e-7
-  [TimeStepper]
-    type = IterationAdaptiveDT  # Chooses next time step size based on # of Newton iterations needed for last step
-    dt = 1  # initial guess for time step
-    optimal_iterations = 6  # if Newton ~6 iterations the dt is "just right"
-    growth_factor = 1.1   # if Newton converges faster, inc dt by 10%
-    cutback_factor_at_failure = 0.9   # if Newton fails to converge, dec dt by 10% and retry
-    timestep_limiting_postprocessor = max_time_step_size
-  []
 []
 
 [Outputs]
