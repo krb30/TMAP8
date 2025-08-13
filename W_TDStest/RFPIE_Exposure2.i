@@ -105,13 +105,13 @@ flux_high = '${fparse 3 * flux_base}'   # 3*flux for He plasma
   []
 []
 
-[Traps/trap1]
-  binding_energy = 1.1        # eV, typical value for general hydrogen retention modeling
-  density = 1e23              # traps/m^3, use 1e20 if simulating a sample that hasn't been exposed. Inc or dec depending on what bias voltage you're simulating
-                              # 1e22 for 0V, 1e23 for -130V/-150V, 1e24 for -300V
-  capture_radius = 0.3e-9     # meters, typical atomic scale
-  trapping_model = "complete"   # or "simple" if not using detrapping
-[]
+#[Traps/trap1]
+#  binding_energy = 1.1        # eV, typical value for general hydrogen retention modeling
+#  density = 1e23              # traps/m^3, use 1e20 if simulating a sample that hasn't been exposed. Inc or dec depending on what bias voltage you're simulating
+#                              # 1e22 for 0V, 1e23 for -130V/-150V, 1e24 for -300V
+#  capture_radius = 0.3e-9     # meters, typical atomic scale
+#  trapping_model = "complete"   # or "simple" if not using detrapping
+#[]
 
 [Functions]
   [Kr_left_func] # Recombination coefficient on left boundary w/ units [microns^4/at/s]
@@ -152,7 +152,7 @@ flux_high = '${fparse 3 * flux_base}'   # 3*flux for He plasma
     scaling_factor = '${fparse -1 * ${units 1 m^2 -> mum^2}}'
     value = dcdx_left
     execute_on = 'initial nonlinear linear timestep_end'
-    outputs = 'console csv exodus'
+    outputs = 'console csv_out exodus'
   []
   [dcdx_right]
     type = ADSideAverageMaterialProperty
@@ -165,11 +165,12 @@ flux_high = '${fparse 3 * flux_base}'   # 3*flux for He plasma
     scaling_factor = '${fparse -1 * ${units 1 m^2 -> mum^2}}'
     value = dcdx_right
     execute_on = 'initial nonlinear linear timestep_end'
-    outputs = 'console csv exodus'
+    outputs = 'console csv_out exodus'
   []
   [total_H]
-    type = ElementIntegralVariable
+    type = ElementIntegralVariablePostprocessor
     variable = concentration
+    execute_on = 'timestep_end'
   []
 []
 
@@ -193,10 +194,16 @@ flux_high = '${fparse 3 * flux_base}'   # 3*flux for He plasma
 
 [Outputs]
   file_base = 'RFPIE_Exposure2_out'
-  csv = true
+
   [exodus]
     type = Exodus
     output_material_properties = true
     time_step_interval = 2
+  []
+
+  [csv_out]
+    type = CSV
+    execute_postprocessors_on = 'timestep_end'
+    time_step_interval = 1
   []
 []

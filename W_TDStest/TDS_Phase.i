@@ -14,13 +14,14 @@ step_interval_min = 6 # (-)
 bound_value_max = '${units 2e4 at/mum^3}'
 bound_value_min = '${units -1e-10 at/mum^3}'
 
+nx_scale = 5
+
 # Diffusion parameters
-flux_high = '${units 1e19 at/m^2/s -> at/mum^2/s}'
-flux_low = '${units 0      at/mum^2/s}'
-diffusivity_coefficient = '${units 4.1e-7 m^2/s -> mum^2/s}'
-E_D = '${units 0.39 eV -> J}'
-initial_concentration = '${units 1e-10 at/m^3 -> at/mum^3}'
-width_source = '${units 3e-9 m -> mum}'
+diffusivity_coefficient = '${units 4.1e-7 m^2/s -> mum^2/s}'    #max diffusivity coeff when x < 15e-9 m
+E_D = '${units 0.39 eV -> J}'           # activity energy for diffusion
+total_H = 1613172964.681    
+mesh_volume = '${units 0.024556 m^3 -> mum^3}'
+initial_concentration = '${fparse ${total_H} / ${mesh_volume}}'
 depth_source = '${units 4.6e-9 m -> mum}'
 
 # Traps parameters
@@ -57,7 +58,7 @@ temperature_rate = '${units ${fparse 15 / 60} K/s}'     # 15 C/min
            ${nx_scale}                           ${nx_scale}             ${fparse 10 * ${nx_scale}}'
     []
 []
-  
+
 [Problem]
     type = ReferenceResidualProblem
     extra_tag_vectors = 'ref'
@@ -65,10 +66,25 @@ temperature_rate = '${units ${fparse 15 / 60} K/s}'     # 15 C/min
 []
   
 [Bounds]
-    [*]
+    [trapped_1_lower]
       type = ConstantBounds
-      variable = bounds_dummy
+      bounded_variable = trapped_1
       bound_type = lower
+      variable = bounds_dummy
+      bound_value = ${bound_value_min}
+    []
+    [trapped_2_lower]
+      type = ConstantBounds
+      bounded_variable = trapped_2
+      bound_type = lower
+      variable = bounds_dummy
+      bound_value = ${bound_value_min}
+    []
+    [trapped_3_lower]
+      type = ConstantBounds
+      bounded_variable = trapped_3
+      bound_type = lower
+      variable = bounds_dummy
       bound_value = ${bound_value_min}
     []
     [trapped_2_upper]
@@ -76,7 +92,7 @@ temperature_rate = '${units ${fparse 15 / 60} K/s}'     # 15 C/min
       variable = bounds_dummy
       bounded_variable = trapped_2
       bound_type = upper
-      bound_value = ${bound_value_max}d
+      bound_value = ${bound_value_max}
     []
     [trapped_3_upper]
       type = ConstantBounds
@@ -142,11 +158,11 @@ temperature_rate = '${units ${fparse 15 / 60} K/s}'     # 15 C/min
       variable = concentration
       extra_vector_tags = ref
     []
-    [source]
-      type = ADBodyForce
-      variable = concentration
-      function = concentration_source_norm_function
-    []
+#    [source]
+#      type = ADBodyForce
+#      variable = concentration
+#      function = concentration_source_norm_function
+#    []
     [coupled_trap_1]
       type = ADCoefCoupledTimeDerivative
       variable = concentration
@@ -284,27 +300,30 @@ temperature_rate = '${units ${fparse 15 / 60} K/s}'     # 15 C/min
           max(${temperature_high} - 0.1 * (t - ${TDS_critical_time_3}), 298.15))))'
       []
   
-    [surface_flux_function]
-      type = PiecewiseLinear
-      file = 'rfpie_flux.csv'
-    []
+#    [surface_flux_function]
+#        type = PiecewiseLinear
+#        data_file = 'RFPIE_Exposure2_out.csv'
+#        x_title = 'time'
+#        y_title = 'scaled_recombination_flux_left'
+#        format = 'columns'
+#    []
   
-    [source_distribution_function]
-      type = ParsedFunction
-      expression = '1 / ( ${width_source} * sqrt(2 * pi) ) * exp(-0.5 * ((x - ${depth_source}) / ${width_source} ) ^ 2)'
-    []
+#    [source_distribution_function]
+#      type = ParsedFunction
+#      expression = '1 / ( ${width_source} * sqrt(2 * pi) ) * exp(-0.5 * ((x - ${depth_source}) / ${width_source} ) ^ 2)'
+#    []
   
     [trap_1_distribution_function]
       type = ParsedFunction
       expression = '${trapping_site_fraction_1} / ( ${width_trap1} * sqrt(2 * pi) ) * exp(-0.5 * ((x - ${depth_source}) / ${width_trap1}) ^ 2)'
     []
   
-    [concentration_source_norm_function]
-      type = ParsedFunction
-      symbol_names = 'source_distribution_function surface_flux_function'
-      symbol_values = 'source_distribution_function surface_flux_function'
-      expression = 'source_distribution_function * surface_flux_function'
-    []
+#    [concentration_source_norm_function]
+#      type = ParsedFunction
+#      symbol_names = 'source_distribution_function surface_flux_function'
+#      symbol_values = 'source_distribution_function surface_flux_function'
+#      expression = 'source_distribution_function * surface_flux_function'
+#    []
   
     [max_dt_size_function]
       type = ParsedFunction
@@ -321,7 +340,7 @@ temperature_rate = '${units ${fparse 15 / 60} K/s}'     # 15 C/min
   
 
 [Postprocessors]
-    [flux_surface_left]
+    [flux_surface_left]     # Gives desorbing flux (atoms/s) at surface
         type = SideDiffusiveFluxIntegral
         variable = concentration
         diffusivity = 'Diffusivity_nonAD'
@@ -333,7 +352,7 @@ temperature_rate = '${units ${fparse 15 / 60} K/s}'     # 15 C/min
         scaling_factor = '${units 1 m^2 -> mum^2}'
         value = flux_surface_left
         execute_on = 'initial nonlinear linear timestep_end'
-        outputs = 'console csv exodus'
+        outputs = 'console csv_out exodus'
     []
     [flux_surface_right]
         type = SideDiffusiveFluxIntegral
@@ -354,6 +373,18 @@ temperature_rate = '${units ${fparse 15 / 60} K/s}'     # 15 C/min
         function = max_dt_size_function
         execute_on = 'initial nonlinear linear timestep_end'
         outputs = none
+    []
+    [avg_temperature]     # Gives temp vs time
+        type = ElementAverageValue
+        variable = temperature
+        outputs = 'console csv_out'
+        execute_on = 'initial timestep_end'
+    []
+    [total_H]     # Multiple by mesh volume to get total H amount
+        type = ElementIntegralVariablePostprocessor
+        variable = concentration
+        outputs = 'console csv_out'
+        execute_on = 'initial timestep_end'
     []
 []
 
@@ -386,15 +417,17 @@ temperature_rate = '${units ${fparse 15 / 60} K/s}'     # 15 C/min
         cutback_factor_at_failure = 0.9
         timestep_limiting_postprocessor = max_time_step_size
     []
+    #restart = true
+    #restart_file = 'RFPIE_Exposure2_out.e'
 []
 
 [Outputs]
     file_base = 'TDS_out'
-    
-    output_variables = 'temperature'
-    [csv]
+    #output_variables = 'temperature'
+    [csv_out]
         type = CSV
-        start_time = ${outputs_initial_time}
+        execute_postprocessors_on = 'timestep_end'
+        time_step_interval = 1
     []
     [exodus]
         type = Exodus
