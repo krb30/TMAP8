@@ -3,10 +3,10 @@ kB = '${units 1.380649e-23 J/K}'  # Boltzmann constant (from PhysicalConstants.h
 
 # Model parameters
 TDS_initial_time = '${units 0 s}'
-TDS_critical_time_1 = '${units 1868 s}'
-TDS_critical_time_2 = '${units 5734 s}'
-TDS_critical_time_3 = '${fparse ${TDS_critical_time_2} + 900}'     # 900 C held for 15 min
-simulation_time = '${units 6.8e3 s}'
+#TDS_critical_time_1 = '${units 1845 s}'
+#TDS_critical_time_2 = '${units 5734 s}'
+#TDS_critical_time_3 = '${fparse ${TDS_critical_time_2} + 900}'     # 900 C held for 15 min
+simulation_time = '${units 1e4 s}'  # 10,000 s
 outputs_initial_time = '${units 0 s}'
 step_interval_max = 50 # (-)
 step_interval_mid = 15 # (-)
@@ -43,9 +43,9 @@ trap_per_free_3 = 1e4 # (-)
 width_trap1 = '${units 10e-9 m -> mum}'
 
 # Thermal parameters
-temperature_low = '${units 300 K}'  # room temp
-temperature_high = '${units 1173 K}'    # 900 C
-temperature_rate = '${units ${fparse 15 / 60} K/s}'     # 15 C/min
+#temperature_low = '${units 300 K}'  # room temp
+#temperature_high = '${units 1173 K}'    # 900 C
+#temperature_rate = '${units ${fparse 15 / 60} K/s}'     # 15 C/min
 
 # Mesh copy-pasted from RFPIE_Exposure.i
 [Mesh]
@@ -66,6 +66,13 @@ temperature_rate = '${units ${fparse 15 / 60} K/s}'     # 15 C/min
 []
   
 [Bounds]
+    [concentratio_lower]
+      type = ConstantBounds
+      bounded_variable = concentration
+      bound_type = lower
+      variable = bounds_dummy
+      bound_value = 0.0
+    []
     [trapped_1_lower]
       type = ConstantBounds
       bounded_variable = trapped_1
@@ -158,11 +165,6 @@ temperature_rate = '${units ${fparse 15 / 60} K/s}'     # 15 C/min
       variable = concentration
       extra_vector_tags = ref
     []
-#    [source]
-#      type = ADBodyForce
-#      variable = concentration
-#      function = concentration_source_norm_function
-#    []
     [coupled_trap_1]
       type = ADCoefCoupledTimeDerivative
       variable = concentration
@@ -292,38 +294,17 @@ temperature_rate = '${units ${fparse 15 / 60} K/s}'     # 15 C/min
   
 [Functions]
     [Temperature_function]
-        type = ParsedFunction
-        expression = '
-          if(t < ${TDS_critical_time_1}, ${temperature_low},
-          if(t < ${TDS_critical_time_2}, ${temperature_low} + ${temperature_rate} * (t - ${TDS_critical_time_1}),
-          if(t < ${TDS_critical_time_3}, ${temperature_high},
-          max(${temperature_high} - 0.1 * (t - ${TDS_critical_time_3}), 298.15))))'
+        type = PiecewiseLinear
+        data_file = 'TDSTempRamp.csv'
+        format = 'columns'
+        x_title = 'time [s]'
+        y_title = 'T [K]'
       []
-  
-#    [surface_flux_function]
-#        type = PiecewiseLinear
-#        data_file = 'RFPIE_Exposure2_out.csv'
-#        x_title = 'time'
-#        y_title = 'scaled_recombination_flux_left'
-#        format = 'columns'
-#    []
-  
-#    [source_distribution_function]
-#      type = ParsedFunction
-#      expression = '1 / ( ${width_source} * sqrt(2 * pi) ) * exp(-0.5 * ((x - ${depth_source}) / ${width_source} ) ^ 2)'
-#    []
   
     [trap_1_distribution_function]
       type = ParsedFunction
       expression = '${trapping_site_fraction_1} / ( ${width_trap1} * sqrt(2 * pi) ) * exp(-0.5 * ((x - ${depth_source}) / ${width_trap1}) ^ 2)'
     []
-  
-#    [concentration_source_norm_function]
-#      type = ParsedFunction
-#      symbol_names = 'source_distribution_function surface_flux_function'
-#      symbol_values = 'source_distribution_function surface_flux_function'
-#      expression = 'source_distribution_function * surface_flux_function'
-#    []
   
     [max_dt_size_function]
       type = ParsedFunction
@@ -332,9 +313,9 @@ temperature_rate = '${units ${fparse 15 / 60} K/s}'     # 15 C/min
   
     [max_dt_size_function_coarse]
       type = ParsedFunction
-      expression = 'if(t<${TDS_critical_time_1}, ${step_interval_max},
-                  if(t<${TDS_critical_time_2}, ${step_interval_mid},
-                  if(t<${TDS_critical_time_3}, ${step_interval_min}, ${step_interval_max})))'
+      expression = 'if(t<1800, ${step_interval_max},
+                  if(t<5730, ${step_interval_mid},
+                  if(t<6630, ${step_interval_min}, ${step_interval_max})))'
     []
 []
   
@@ -346,6 +327,13 @@ temperature_rate = '${units ${fparse 15 / 60} K/s}'     # 15 C/min
         diffusivity = 'Diffusivity_nonAD'
         boundary = 'left'
         outputs = none
+    []
+    [flux_surface_left_area_norm]   # Flux normalized to atoms/m^2/s
+        type = ScalePostprocessor
+        scaling_factor = ${fparse 1.0/2.827e-5}   # 1/area
+        value = flux_surface_left
+        execute_on = 'initial nonlinear linear timestep_end'
+        outputs = 'console csv_out exodus'
     []
     [scaled_flux_surface_left]
         type = ScalePostprocessor
@@ -368,6 +356,13 @@ temperature_rate = '${units ${fparse 15 / 60} K/s}'     # 15 C/min
         execute_on = 'initial nonlinear linear timestep_end'
         outputs = none
     []
+    [flux_surface_right_area_norm]
+        type = ScalePostprocessor
+        scaling_factor = ${fparse 1.0/2.827e-5}   # 1/area
+        value = flux_surface_right
+        execute_on = 'initial nonlinear linear timestep_end'
+        outputs = 'console csv_out exodus'
+    []
     [max_time_step_size]
         type = FunctionValuePostprocessor
         function = max_dt_size_function
@@ -386,6 +381,13 @@ temperature_rate = '${units ${fparse 15 / 60} K/s}'     # 15 C/min
         outputs = 'console csv_out'
         execute_on = 'initial timestep_end'
     []
+    [d2_flux_surface_left]
+    type = ScalePostprocessor
+    scaling_factor = 0.5
+    value = flux_surface_left_area_norm
+    execute_on = 'initial nonlinear linear timestep_end'
+    outputs = 'console csv_out exodus'
+    []
 []
 
 [Preconditioning]
@@ -399,26 +401,30 @@ temperature_rate = '${units ${fparse 15 / 60} K/s}'     # 15 C/min
     type = Transient
     scheme = bdf2
     solve_type = NEWTON
-    petsc_options_iname = '-pc_type -snes_type'
-    petsc_options_value = 'lu vinewtonrsls'
+
+    #petsc_options_iname = '-pc_type -snes_type'
+    #petsc_options_value = 'lu vinewtonrsls'
+
+    # Use VI-Newton (keeps bounds) but with backtracking
+    petsc_options_iname  = '-snes_type -snes_linesearch_type -ksp_type -pc_type'
+    petsc_options_value  = 'vinewtonrsls bt               gmres     lu'
 
     end_time = ${simulation_time}
-    line_search = 'none'
+    line_search = 'bt'  #backtracking
     automatic_scaling = true
-    nl_rel_tol = 1e-10
-    nl_max_its = 34
+    nl_rel_tol = 1e-6
+    nl_abs_tol = 1e-12
+    nl_max_its = 50
     [TimeStepper]
         type = IterationAdaptiveDT
-        dt = 1.0
+        dt = 1e-10
         iteration_window = 5
-        optimal_iterations = 26
-        growth_factor = 1.1
-        cutback_factor = 0.9
-        cutback_factor_at_failure = 0.9
+        optimal_iterations = 12
+        growth_factor = 1.25
+        cutback_factor = 0.5
+        cutback_factor_at_failure = 0.2
         timestep_limiting_postprocessor = max_time_step_size
     []
-    #restart = true
-    #restart_file = 'RFPIE_Exposure2_out.e'
 []
 
 [Outputs]
@@ -426,13 +432,13 @@ temperature_rate = '${units ${fparse 15 / 60} K/s}'     # 15 C/min
     #output_variables = 'temperature'
     [csv_out]
         type = CSV
-        execute_postprocessors_on = 'timestep_end'
+        execute_postprocessors_on = 'nonlinear timestep_end'
         time_step_interval = 1
     []
     [exodus]
         type = Exodus
         start_time = ${outputs_initial_time}
         output_material_properties = true
-        time_step_interval = 20
+        time_step_interval = 1
     []
 []
