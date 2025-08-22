@@ -54,6 +54,14 @@ flux_high = '${fparse 3 * flux_base}'   # 3*flux for He plasma
   []
   [recombination_TMAP4]
   []
+  [filled_trap1]
+  []
+  [filled_trap2]
+  []
+  [filled_trap3]
+  []
+  [temperature]
+  []
 []
 
 [AuxKernels]
@@ -69,21 +77,62 @@ flux_high = '${fparse 3 * flux_base}'   # 3*flux for He plasma
     function = '${recombination_coefficient_parameter_enclos1_TMAP4}'
     execute_on = 'INITIAL TIMESTEP_END'
   []
+  [temperature_aux]
+    type = ConstantAux
+    variable = temperature
+    value = 300   # K - Samples stay at room temperature    ########### This could be what I'd change if I want to look at temperature dependence since plasma inc temp ~50 C
+  []
 []
+
+[NodalKernels]
+  [trap1_trapping]
+    type = TrappingNodalKernel
+    variable = concentration
+    filled_trap = filled_trap1
+    Ct0 = 1.0
+    N = 6.3e28  # number density of W
+    alpha_t = 1e6
+    mobile_concentration = concentration
+    temperature = 'temperature'
+  []
+
+  [trap2_trapping]
+    type = TrappingNodalKernel
+    variable = concentration
+    filled_trap = filled_trap2
+    Ct0 = 0.1
+    N = 6.3e28
+    alpha_t = 5e5
+    mobile_concentration = concentration
+    temperature = 'temperature'
+  []
+
+  [trap3_trapping]
+    type = TrappingNodalKernel
+    variable = concentration
+    filled_trap = filled_trap3
+    Ct0 = 0.01
+    N = 6.3e28
+    alpha_t = 1e5
+    mobile_concentration = concentration
+    temperature = 'temperature'
+  []
+[]
+
 
 [BCs]
   [left]
     type = ADMatNeumannBC
     variable = concentration
     boundary = left
-    value = 1
+    value = 0
     boundary_material = flux_on_left  # Calculated in the [Materials] block
   []
   [right]
     type = ADMatNeumannBC
     variable = concentration
     boundary = right
-    value = 1
+    value = 0
     boundary_material = flux_on_right # Calculated in the [Materials] block
   []
 []
@@ -104,14 +153,6 @@ flux_high = '${fparse 3 * flux_base}'   # 3*flux for He plasma
     expression = '- 2 * ${recombination_parameter_enclos2} * concentration ^ 2'
   []
 []
-
-#[Traps/trap1]
-#  binding_energy = 1.1        # eV, typical value for general hydrogen retention modeling
-#  density = 1e23              # traps/m^3, use 1e20 if simulating a sample that hasn't been exposed. Inc or dec depending on what bias voltage you're simulating
-#                              # 1e22 for 0V, 1e23 for -130V/-150V, 1e24 for -300V
-#  capture_radius = 0.3e-9     # meters, typical atomic scale
-#  trapping_model = "complete"   # or "simple" if not using detrapping
-#[]
 
 [Functions]
   [Kr_left_func] # Recombination coefficient on left boundary w/ units [microns^4/at/s]
@@ -167,10 +208,39 @@ flux_high = '${fparse 3 * flux_base}'   # 3*flux for He plasma
     execute_on = 'initial nonlinear linear timestep_end'
     outputs = 'console csv_out exodus'
   []
-  [total_H]
+  [total_H_mobile]   # This is the sum of mobile H in the lattice. Once a H atom is trapped, it no longer counts in concentration
     type = ElementIntegralVariablePostprocessor
     variable = concentration
     execute_on = 'timestep_end'
+  []
+  [filled_trap1_pp]
+    type = ElementIntegralVariablePostprocessor
+    variable = filled_trap1
+    execute_on = 'timestep_end'
+    outputs = 'console csv_out'
+  []
+
+  [filled_trap2_pp]  
+    type = ElementIntegralVariablePostprocessor
+    variable = filled_trap2
+    execute_on = 'timestep_end'
+    outputs = 'console csv_out'
+  []
+
+  [filled_trap3_pp]
+    type = ElementIntegralVariablePostprocessor
+    variable = filled_trap3
+    execute_on = 'timestep_end'
+    outputs = 'console csv_out'
+  []
+
+  [total_H_implanted]
+    type = ElementIntegralVariablePostprocessor
+    variable = concentration
+    execute_on = 'timestep_end'
+    # Include other trapped variables in "additional_variables"
+    additional_variables = 'trap1 trap2 trap3'
+    scale_factor = 1.0
   []
 []
 
@@ -205,5 +275,11 @@ flux_high = '${fparse 3 * flux_base}'   # 3*flux for He plasma
     type = CSV
     execute_postprocessors_on = 'timestep_end'
     time_step_interval = 1
+  []
+
+  [chk]
+    type = Checkpoint
+    num_files = 1
+    execute_on = 'timestep_end'
   []
 []

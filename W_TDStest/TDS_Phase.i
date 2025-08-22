@@ -1,17 +1,16 @@
+## Inputs from RFPIE_Exposure2.i
+total_H = 1613172964.681    # total_H_mobile from RFPIE_Exposure2.i
+initial_concentration_trap_1 = 4.4e-10 # (-)
+initial_concentration_trap_2 = 4.4e-10 # (-)
+initial_concentration_trap_3 = 1.4e-10 # (-)
+########################################################################
+
 # General parameters
 kB = '${units 1.380649e-23 J/K}'  # Boltzmann constant (from PhysicalConstants.h - https://physics.nist.gov/cgi-bin/cuu/Value?r)
 
 # Model parameters
-TDS_initial_time = '${units 0 s}'
-#TDS_critical_time_1 = '${units 1845 s}'
-#TDS_critical_time_2 = '${units 5734 s}'
-#TDS_critical_time_3 = '${fparse ${TDS_critical_time_2} + 900}'     # 900 C held for 15 min
 simulation_time = '${units 1e4 s}'  # 10,000 s
 outputs_initial_time = '${units 0 s}'
-step_interval_max = 50 # (-)
-step_interval_mid = 15 # (-)
-step_interval_min = 6 # (-)
-bound_value_max = '${units 2e4 at/mum^3}'
 bound_value_min = '${units -1e-10 at/mum^3}'
 
 nx_scale = 5
@@ -19,19 +18,15 @@ nx_scale = 5
 # Diffusion parameters
 diffusivity_coefficient = '${units 4.1e-7 m^2/s -> mum^2/s}'    #max diffusivity coeff when x < 15e-9 m
 E_D = '${units 0.39 eV -> J}'           # activity energy for diffusion
-total_H = 1613172964.681    
-mesh_volume = '${units 0.024556 m^3 -> mum^3}'
+mesh_volume = '${units 1.4107e-8 m^3 -> mum^3}'
 initial_concentration = '${fparse ${total_H} / ${mesh_volume}}'
-depth_source = '${units 4.6e-9 m -> mum}'
 
 # Traps parameters
 N = '${units 6.25e28 at/m^3 -> at/mum^3}'
-initial_concentration_trap_2 = 4.4e-10 # (-)
-initial_concentration_trap_3 = 1.4e-10 # (-)
 trapping_energy = '${fparse ${units 0.39 eV -> J} / ${kB}}'
-detrapping_energy_1 = '${fparse ${units 1.2 eV -> J} / ${kB}}'
-detrapping_energy_2 = '${fparse ${units 1.6 eV -> J} / ${kB}}'
-detrapping_energy_3 = '${fparse ${units 3.1 eV -> J} / ${kB}}'
+detrapping_energy_1 = '${fparse ${units 1.2 eV -> J} / ${kB}}'  # Should release ~300-500 C
+detrapping_energy_2 = '${fparse ${units 1.6 eV -> J} / ${kB}}'  # Releases at higher temperatures
+detrapping_energy_3 = '${fparse ${units 3.1 eV -> J} / ${kB}}'  # Very deep traps, release ~700-800 C
 trapping_site_fraction_1 = 0.002156 # (-)
 trapping_site_fraction_2 = 0.00175 # (-)
 trapping_site_fraction_3 = 0.0020 # (-)
@@ -40,7 +35,7 @@ release_rate_profactor = '${units 8.4e12 1/s}'
 trap_per_free_1 = 1e6 # (-)
 trap_per_free_2 = 1e4 # (-)
 trap_per_free_3 = 1e4 # (-)
-width_trap1 = '${units 10e-9 m -> mum}'
+#width_trap1 = '${units 10e-9 m -> mum}'
 
 # Thermal parameters
 #temperature_low = '${units 300 K}'  # room temp
@@ -99,14 +94,14 @@ width_trap1 = '${units 10e-9 m -> mum}'
       variable = bounds_dummy
       bounded_variable = trapped_2
       bound_type = upper
-      bound_value = ${bound_value_max}
+      bound_value = '${fparse ${N} * ${trapping_site_fraction_2}}'
     []
     [trapped_3_upper]
       type = ConstantBounds
       variable = bounds_dummy
       bounded_variable = trapped_3
       bound_type = upper
-      bound_value = ${bound_value_max}
+      bound_value = '${fparse ${N} * ${trapping_site_fraction_3}}'
     []
 []
   
@@ -119,6 +114,7 @@ width_trap1 = '${units 10e-9 m -> mum}'
     [trapped_1]
       order = FIRST
       family = LAGRANGE
+      initial_condition = '${fparse initial_concentration_trap_1 * trapping_site_fraction_1 * N}'
       outputs = none
     []
     [trapped_2]
@@ -149,7 +145,7 @@ width_trap1 = '${units 10e-9 m -> mum}'
       type = FunctionAux
       variable = temperature
       function = Temperature_function
-      execute_on = 'initial timestep_end linear'
+      execute_on = 'initial timestep_begin'
     []
 []
   
@@ -193,18 +189,18 @@ width_trap1 = '${units 10e-9 m -> mum}'
       type = TimeDerivativeNodalKernel
       variable = trapped_1
     []
-    [trapping_1]
-      type = TrappingNodalKernel
-      variable = trapped_1
-      mobile_concentration = concentration
-      alpha_t = '${trapping_rate_prefactor}'
-      trapping_energy = '${trapping_energy}'
-      N = '${N}'
-      Ct0 = 'trap_1_distribution_function'
-      temperature = 'temperature'
-      trap_per_free = ${trap_per_free_1}
-      extra_vector_tags = ref
-    []
+#    [trapping_1]
+#      type = TrappingNodalKernel
+#      variable = trapped_1
+#      mobile_concentration = concentration
+#      alpha_t = '${trapping_rate_prefactor}'
+#      trapping_energy = '${trapping_energy}'
+#      N = '${N}'
+#      Ct0 = 'trap_1_distribution_function'
+#      temperature = 'temperature'
+#      trap_per_free = ${trap_per_free_1}
+#      extra_vector_tags = ref
+#    []
     [release_1]
       type = ReleasingNodalKernel
       variable = trapped_1
@@ -216,18 +212,18 @@ width_trap1 = '${units 10e-9 m -> mum}'
       type = TimeDerivativeNodalKernel
       variable = trapped_2
     []
-    [trapping_2]
-      type = TrappingNodalKernel
-      variable = trapped_2
-      mobile_concentration = concentration
-      alpha_t = '${trapping_rate_prefactor}'
-      trapping_energy = '${trapping_energy}'
-      N = '${N}'
-      Ct0 = '${trapping_site_fraction_2}'
-      temperature = 'temperature'
-      trap_per_free = ${trap_per_free_2}
-      extra_vector_tags = ref
-    []
+#    [trapping_2]
+#      type = TrappingNodalKernel
+#      variable = trapped_2
+#      mobile_concentration = concentration
+#      alpha_t = '${trapping_rate_prefactor}'
+#      trapping_energy = '${trapping_energy}'
+#      N = '${N}'
+#      Ct0 = '${trapping_site_fraction_2}'
+#      temperature = 'temperature'
+#      trap_per_free = ${trap_per_free_2}
+#      extra_vector_tags = ref
+#    []
     [release_2]
       type = ReleasingNodalKernel
       variable = trapped_2
@@ -239,18 +235,18 @@ width_trap1 = '${units 10e-9 m -> mum}'
       type = TimeDerivativeNodalKernel
       variable = trapped_3
     []
-    [trapping_3]
-      type = TrappingNodalKernel
-      variable = trapped_3
-      mobile_concentration = concentration
-      alpha_t = '${trapping_rate_prefactor}'
-      trapping_energy = '${trapping_energy}'
-      N = '${N}'
-      Ct0 = '${trapping_site_fraction_3}'
-      temperature = 'temperature'
-      trap_per_free = ${trap_per_free_3}
-      extra_vector_tags = ref
-    []
+#    [trapping_3]
+#      type = TrappingNodalKernel
+#      variable = trapped_3
+#      mobile_concentration = concentration
+#      alpha_t = '${trapping_rate_prefactor}'
+#      trapping_energy = '${trapping_energy}'
+#      N = '${N}'
+#      Ct0 = '${trapping_site_fraction_3}'
+#      temperature = 'temperature'
+#      trap_per_free = ${trap_per_free_3}
+#      extra_vector_tags = ref
+#    []
     [release_3]
       type = ReleasingNodalKernel
       variable = trapped_3
@@ -262,17 +258,17 @@ width_trap1 = '${units 10e-9 m -> mum}'
   
 [BCs]
     [left]
-      type = ADDirichletBC
+      type = ADDirichletBC  # Acts as a sink for outgassing
       variable = concentration
       boundary = left
       value = 0
     []
-    [right]
-      type = ADDirichletBC
-      variable = concentration
-      boundary = right
-      value = 0
-    []
+#    [right]    # commented because only 1 face outgases in Sandia set up
+#      type = ADDirichletBC
+#      variable = concentration
+#      boundary = right
+#      value = 0
+#    []
 []
   
 [Materials]
@@ -299,24 +295,18 @@ width_trap1 = '${units 10e-9 m -> mum}'
         format = 'columns'
         x_title = 'time [s]'
         y_title = 'T [K]'
-      []
+    []
   
     [trap_1_distribution_function]
       type = ParsedFunction
-      expression = '${trapping_site_fraction_1} / ( ${width_trap1} * sqrt(2 * pi) ) * exp(-0.5 * ((x - ${depth_source}) / ${width_trap1}) ^ 2)'
+      expression = '${trapping_site_fraction_1}'  # Sets traps as a uniform fraction of N everywhere
     []
-  
-    [max_dt_size_function]
+
+    [dt_cap_function]
       type = ParsedFunction
-      expression = 'if(t<${TDS_initial_time}, ${step_interval_mid}, ${step_interval_min})'
+      expression = '20.0'  # in seconds, or whatever max timestep you want
     []
-  
-    [max_dt_size_function_coarse]
-      type = ParsedFunction
-      expression = 'if(t<1800, ${step_interval_max},
-                  if(t<5730, ${step_interval_mid},
-                  if(t<6630, ${step_interval_min}, ${step_interval_max})))'
-    []
+
 []
   
 
@@ -363,12 +353,6 @@ width_trap1 = '${units 10e-9 m -> mum}'
         execute_on = 'initial nonlinear linear timestep_end'
         outputs = 'console csv_out exodus'
     []
-    [max_time_step_size]
-        type = FunctionValuePostprocessor
-        function = max_dt_size_function
-        execute_on = 'initial nonlinear linear timestep_end'
-        outputs = none
-    []
     [avg_temperature]     # Gives temp vs time
         type = ElementAverageValue
         variable = temperature
@@ -382,12 +366,92 @@ width_trap1 = '${units 10e-9 m -> mum}'
         execute_on = 'initial timestep_end'
     []
     [d2_flux_surface_left]
-    type = ScalePostprocessor
-    scaling_factor = 0.5
-    value = flux_surface_left_area_norm
-    execute_on = 'initial nonlinear linear timestep_end'
-    outputs = 'console csv_out exodus'
+        type = ScalePostprocessor
+        scaling_factor = 0.5
+        value = flux_surface_left_area_norm
+        execute_on = 'initial nonlinear linear timestep_end'
+        outputs = 'console csv_out exodus'
     []
+
+    [dt_cap]
+        type = FunctionValuePostprocessor
+        function = dt_cap_function
+        execute_on = 'initial nonlinear linear timestep_end'
+    []
+
+    # Surface flux at left surface (node 0)
+    [surface_flux_left]
+        type = SideDiffusiveFluxIntegral
+        variable = concentration
+        #node = 0
+        diffusivity = 'Diffusivity_nonAD'
+        boundary = 'left'
+        outputs = 'console csv_out'
+    []
+
+    # Trapped populations at left surface (node 0)
+    [trap1_left]
+        type = ElementAverageValue
+        variable = trapped_1
+        #node = 0
+        outputs = 'console csv_out'
+    []
+
+    [trap2_left]
+        type = ElementAverageValue
+        variable = trapped_2
+        #node = 0
+        outputs = 'console csv_out'
+    []
+
+    [trap3_left]
+        type = ElementAverageValue
+        variable = trapped_3
+        #node = 0
+        outputs = 'console csv_out'
+    []
+
+    # Bulk concentration (volume average)
+    [bulk_concentration]
+        type = ElementAverageValue
+        variable = concentration
+        outputs = 'console csv_out'
+    []
+
+    # Bulk trap populations (volume average)
+    [bulk_trap1]
+        type = ElementAverageValue
+        variable = trapped_1
+        outputs = 'console csv_out'
+    []
+
+    [bulk_trap2]
+        type = ElementAverageValue
+        variable = trapped_2
+        outputs = 'console csv_out'
+    []
+
+    [bulk_trap3]
+        type = ElementAverageValue
+        variable = trapped_3
+        outputs = 'console csv_out'
+    []
+
+    # Temperature at left surface (node 0)
+    [temperature_left]
+        type = ElementAverageValue
+        variable = temperature
+        #node = 0
+        outputs = 'console csv_out'
+    []
+
+    # Bulk average temperature
+    [avg_temperature_bulk]
+        type = ElementAverageValue
+        variable = temperature
+        outputs = 'console csv_out'
+    []
+
 []
 
 [Preconditioning]
@@ -423,7 +487,7 @@ width_trap1 = '${units 10e-9 m -> mum}'
         growth_factor = 1.25
         cutback_factor = 0.5
         cutback_factor_at_failure = 0.2
-        timestep_limiting_postprocessor = max_time_step_size
+        timestep_limiting_postprocessor = dt_cap
     []
 []
 
