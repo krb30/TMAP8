@@ -2,10 +2,10 @@
 kB = '${units 1.380649e-23 J/K}' # Boltzmann constant (from PhysicalConstants.h - https://physics.nist.gov/cgi-bin/cuu/Value?r)
 
 # Model parameters
-TDS_initial_time = '${units 5e3 s}'
-TDS_critial_time_1 = '${units 5400 s}'
-TDS_critial_time_2 = '${units 5404 s}'
-simulation_time = '${units 6.8e3 s}'
+TDS_initial_time = '${units 1e3 s}' # 1000s of plasma time
+TDS_critial_time_1 = '${units 4492 s}' # TDS ramp time to 1173 K 
+TDS_critial_time_2 = '${units 4496 s}' 
+simulation_time = '${units 5392 s}'     # sample held at 900 C for 15 min -> 4492+15(60)
 outputs_initial_time = '${units 0 s}'
 step_interval_max = 50 # (-)
 step_interval_mid = 15 # (-)
@@ -14,7 +14,7 @@ bound_value_max = '${units 2e4 at/mum^3}'
 bound_value_min = '${units -1e-10 at/mum^3}'
 
 # Diffusion parameters
-flux_high = '${units 1e19 at/m^2/s -> at/mum^2/s}'
+flux_high = '${units 1.3e21 at/m^2/s -> at/mum^2/s}'  
 flux_low = '${units 0      at/mum^2/s}'
 diffusivity_coefficient = '${units 4.1e-7 m^2/s -> mum^2/s}'
 E_D = '${units 0.39 eV -> J}'
@@ -42,8 +42,8 @@ width_trap1 = '${units 10e-9 m -> mum}'
 
 # thermal parameters
 temperature_low = '${units 300 K}'
-temperature_high = '${units 1273 K}'
-temperature_rate = '${units ${fparse 50 / 60} K/s}'
+temperature_high = '${units 1173 K}'  # 900 C
+temperature_rate = '${units ${fparse 15 / 60} K/s}'
 
 [Mesh]
   active = 'cartesian_mesh'
@@ -410,6 +410,12 @@ temperature_rate = '${units ${fparse 50 / 60} K/s}'
     execute_on = 'initial nonlinear linear timestep_end'
     outputs = none
   []
+  [avg_temperature]     # Gives temp vs time
+    type = ElementAverageValue
+    variable = temperature
+    outputs = 'console csv'
+    execute_on = 'initial nonlinear linear timestep_end'
+  []
 []
 
 [Preconditioning]
@@ -429,8 +435,8 @@ temperature_rate = '${units ${fparse 50 / 60} K/s}'
   end_time = ${simulation_time}
   line_search = 'none'
   automatic_scaling = true
-  nl_rel_tol = 1e-10
-  nl_max_its = 34
+  nl_rel_tol = 1e-6
+  nl_max_its = 50
   [TimeStepper]
     type = IterationAdaptiveDT
     dt = 1.0
@@ -444,7 +450,7 @@ temperature_rate = '${units ${fparse 50 / 60} K/s}'
 []
 
 [Outputs]
-  file_base = 'val-2d_out'
+  file_base = 'RFPIE_TDS_out'
   [csv]
     type = CSV
     start_time = ${outputs_initial_time}
