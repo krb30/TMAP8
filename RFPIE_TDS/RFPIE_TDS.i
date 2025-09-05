@@ -14,8 +14,11 @@ bound_value_max = '${units 2e4 at/mum^3}'
 bound_value_min = '${units -1e-10 at/mum^3}'
 
 # Diffusion parameters
-flux_high = '${units 1.3e21 at/m^2/s -> at/mum^2/s}'  
+#bias_voltage = '${units 0 V}'             # set to 0 V, -130 V, -300 V for each run
+#ion_incident_flux = '${units 1.3e21 at/m^2/s -> at/mum^2/s}'  
+flux_high = '${ion_incident_flux}''    
 flux_low = '${units 0      at/mum^2/s}'
+#retained_fraction = '${fparse 1.0}'       # set = (1 - reflection - sputter_loss) from SRIM for this bias
 diffusivity_coefficient = '${units 4.1e-7 m^2/s -> mum^2/s}'
 E_D = '${units 0.39 eV -> J}'
 initial_concentration = '${units 1e-10 at/m^3 -> at/mum^3}'
@@ -27,9 +30,9 @@ N = '${units 6.25e28 at/m^3 -> at/mum^3}'
 initial_concentration_trap_2 = 4.4e-10 # (-)
 initial_concentration_trap_3 = 1.4e-10 # (-)
 trapping_energy = '${fparse ${units 0.39 eV -> J} / ${kB}}'
-detrapping_energy_1 = '${fparse ${units 1.2 eV -> J} / ${kB}}'
-detrapping_energy_2 = '${fparse ${units 1.6 eV -> J} / ${kB}}'
-detrapping_energy_3 = '${fparse ${units 3.1 eV -> J} / ${kB}}'
+detrapping_energy_1 = '${fparse ${units 1.2 eV -> J} / ${kB}}'  # Should release ~300-500 C
+detrapping_energy_2 = '${fparse ${units 1.6 eV -> J} / ${kB}}'  # Releases at higher temperatures
+detrapping_energy_3 = '${fparse ${units 3.1 eV -> J} / ${kB}}'  # Very deep traps, release ~700-800 C
 trapping_site_fraction_1 = 0.002156 # (-)
 trapping_site_fraction_2 = 0.00175 # (-)
 trapping_site_fraction_3 = 0.0020 # (-)
@@ -41,9 +44,9 @@ trap_per_free_3 = 1e4 # (-)
 width_trap1 = '${units 10e-9 m -> mum}'
 
 # thermal parameters
-temperature_low = '${units 300 K}'
+temperature_low = '${units 300 K}'    # Room temp
 temperature_high = '${units 1173 K}'  # 900 C
-temperature_rate = '${units ${fparse 15 / 60} K/s}'
+temperature_rate = '${units ${fparse 15 / 60} K/s}'   # 15 C/min
 
 [Mesh]
   active = 'cartesian_mesh'
@@ -344,6 +347,11 @@ temperature_rate = '${units ${fparse 15 / 60} K/s}'
     type = ParsedFunction
     expression = 'if(t<${TDS_initial_time}, ${flux_high}, ${flux_low})'
   []
+
+#  [surface_flux_function]
+#    type = ParsedFunction
+#    expression = 'if(t < ${TDS_initial_time}, ${ion_incident_flux} * ${retained_fraction}, ${flux_low})'
+#  []
 
   [source_distribution_function]
     type = ParsedFunction
